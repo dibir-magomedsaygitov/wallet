@@ -69,10 +69,10 @@ subprojects {
                 compileSdkVersion rootProject.ext.compileSdkVersion
                 buildToolsVersion rootProject.ext.buildToolsVersion
                 
-                "lintOptions {
+                lintOptions {
                   checkReleaseBuilds false
                   abortOnError false
-                }"
+                }
             }
         }
     }
