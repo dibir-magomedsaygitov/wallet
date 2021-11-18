@@ -1,6 +1,6 @@
-name: Android E2E testing
+name: Android E2E
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -8,61 +8,38 @@ jobs:
   android:
     name: Android
     runs-on: macos-11
+    env:
+      ANDROID_NDK_LATEST_HOME: /Users/runner/Library/Android/sdk/ndk/23.1.7779620
+      ANDROID_NDK_HOME: /Users/runner/Library/Android/sdk/ndk/23.1.7779620
+      ANDROID_NDK_ROOT: /Users/runner/Library/Android/sdk/ndk/23.1.7779620
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           node-version: '12'
           check-latest: true
-      - name: Copy Emulator Config
-        run: mkdir -p ~/.android/avd/Pixel_API_29_AOSP_x86_64.avd/ && cp packages/mobile/e2e/conf/avd_conf.ini ~/.android/avd/Pixel_API_29_AOSP_x86_64.avd/config.ini
-      - name: Install package dependencies
-        run: yarn
-      - name: Build mobile dependencies
-        run: yarn build --scope @celo/mobile --include-filtered-dependencies
-      - name: Create E2E Test .env File
-        env:
-          TEST_FAUCET_SECRET: ${{ secrets.TEST_FAUCET_SECRET }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          VERIFICATION_PHONE_NUMBER: ${{ secrets.VERIFICATION_PHONE_NUMBER }}
-        run : |
-          cd packages/mobile/e2e
-          echo TEST_FAUCET_SECRET=$TEST_FAUCET_SECRET >> .env
-          echo TWILIO_AUTH_TOKEN=$TWILIO_AUTH_TOKEN >> .env
-          echo TWILIO_ACCOUNT_SID=$TWILIO_ACCOUNT_SID >> .env
-          echo VERIFICATION_PHONE_NUMBER=$VERIFICATION_PHONE_NUMBER >> .env
-      - name: Fund E2E accounts
-        run : |
-          cd packages/mobile/e2e/scripts
-          node ./fund-e2e-accounts.ts
-      - name: Run E2E tests
-        run: |
-          export ANDROID_SDK_ROOT=$HOME/android-tools
-          export ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/21.0.6113669
-          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest:$PATH
-          export PATH=$ANDROID_SDK_ROOT/platform-tools:$PATH
-          export PATH=$ANDROID_SDK_ROOT/emulator:$PATH
-          cd packages/mobile
-          yarn run test:e2e:android -w 1
-      # Publish Test Results
-      - name: Publish Android JUnit Report
-        if: always()
-        uses: mikepenz/action-junit-report@v2
+      - uses: actions/setup-java@v2
         with:
-          check_name: Android e2e Test Report 
-          report_paths: 'packages/mobile/e2e/test-results/junit.xml'
-      # Upload Artifacts
-      - name: 'Upload Android E2E Artifacts'
-        if: failure()
-        uses: actions/upload-artifact@v2
+          distribution: 'adopt-openj9'
+          java-version: '8'
+      - name: setup-android-tools
+        uses: maxim-lobanov/setup-android-tools@v1
         with:
-          name: android-e2e-artifact
-          path: packages/mobile/e2e/artifacts
-      - name: 'Upload Android E2E HTML Report'
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: android-e2e-test-report
-          path: packages/mobile/e2e/test-results
+          packages: system-images;android-29;default;x86_64
+      - run: |
+         cp -R /Users/runner/Library/Android/sdk/ndk/21.4.7075529/toolchains/arm-linux-androideabi-4.9 $ANDROID_NDK_HOME/toolchains
+         cp -R /Users/runner/Library/Android/sdk/ndk/21.4.7075529/toolchains/aarch64-linux-android-4.9 $ANDROID_NDK_HOME/toolchains
+         cp -R /Users/runner/Library/Android/sdk/ndk/21.4.7075529/toolchains/x86-4.9 $ANDROID_NDK_HOME/toolchains
+         cp -R /Users/runner/Library/Android/sdk/ndk/21.4.7075529/toolchains/x86_64-4.9 $ANDROID_NDK_HOME/toolchains
+      - run: brew install tree coreutils
+      - run: |
+         $ANDROID_HOME/tools/bin/avdmanager create avd --force --name Pixel_API_29_AOSP_x86_64 --package "system-images;android-29;default;x86_64" --device pixel
+         $ANDROID_HOME/tools/bin/avdmanager list avd
+         mkdir -p ~/.android/avd/Pixel_API_29_AOSP_x86_64.avd/ && cp packages/mobile/e2e/conf/avd_conf.ini ~/.android/avd/Pixel_API_29_AOSP_x86_64.avd/config.ini
+         $ANDROID_HOME/emulator/emulator -list-avds
+         $ANDROID_HOME/emulator/emulator -accel-check
+      - run: yarn
+      - run: yarn build --scope @celo/mobile --include-filtered-dependencies
+      - run: |
+         cd packages/mobile/
+         yarn run test:e2e:android
