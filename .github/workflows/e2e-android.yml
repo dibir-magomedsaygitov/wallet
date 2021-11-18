@@ -1,4 +1,4 @@
-name: Android E2E
+name: Android E2E test
 on:
   pull_request:
     branches:
