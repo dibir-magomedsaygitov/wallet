@@ -1,8 +1,6 @@
 name: Android E2E test1
 on:
-  pull_request:
-    branches:
-      - main
+  push:
 
 jobs:
   android:
